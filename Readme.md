@@ -10,7 +10,8 @@ Given how tough the job market is, I thought I’d contribute something small bu
 Stay tuned — and feel free to contribute, fork, or follow along.
 
 
-
+## SAMPLE OF how it works, would Add UI in future releases
+https://github.com/user-attachments/assets/b6b2ba8f-2cf3-4c82-bb1a-8d926dc1cfbd
 
 # Gmail Rejection & Interview Labeler
 
@@ -74,5 +75,10 @@ This project was created by **Jake Mofa**.
 If you find it helpful, please consider tagging me or linking back:
 - GitHub: [@JakeMofa](https://github.com/JakeMofa)
 - LinkedIn: [Jake Mofa](https://www.linkedin.com/in/jakemofa)
+- 
+
+
+
+
 
 I appreciate the acknowledgment and connections!
