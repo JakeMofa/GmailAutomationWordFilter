@@ -1,0 +1,14 @@
+# Ignore Google API credentials and tokens
+credentials.json
+token.json
+
+# Python cache
+__pycache__/
+*.pyc
+
+# VSCode settings (optional)
+.vscode/
+
+# Virtual environments (if using one)
+venv/
+.env/

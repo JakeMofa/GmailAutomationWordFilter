@@ -1,5 +1,11 @@
+# Gmail Labeler Script
+# Author: Jake Mofa (@JakeMofa)
+# License: MIT
+# If you use this, please credit or tag me: https://linkedin.com/in/jakemofa
+
 import base64
 import os
+import re
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -99,6 +105,36 @@ INTERVIEW_PHRASES = [
 
 
 
+#Fetch
+
+def fetch_all_messages(service, query):
+    all_messages = []
+    next_page_token = None
+
+    while True:
+        response = service.users().messages().list(
+            userId='me',
+            q=query,
+            pageToken=next_page_token
+        ).execute()
+
+        all_messages.extend(response.get('messages', []))
+        next_page_token = response.get('nextPageToken')
+        if not next_page_token:
+            break
+
+    return all_messages
+
+
+# === Regex Helpers ===
+def phrase_to_regex(phrase):
+    pattern = r'\b' + re.sub(r'\s+', r'\\s+', re.escape(phrase)) + r'\b'
+    return re.compile(pattern, re.IGNORECASE)
+
+rejection_regex_patterns = [phrase_to_regex(p) for p in REJECTION_PHRASES]
+interview_regex_patterns = [phrase_to_regex(p) for p in INTERVIEW_PHRASES]
+
+# === Gmail Utilities ===
 def authenticate_gmail():
     creds = None
     if os.path.exists('token.json'):
@@ -126,7 +162,6 @@ def get_message_subject_and_body(service, msg_id):
     headers = msg['payload'].get('headers', [])
     subject = next((h['value'] for h in headers if h['name'] == 'Subject'), '')
 
-    # Extract text from payload
     parts = msg['payload'].get('parts', [])
     body = ""
     for part in parts:
@@ -139,14 +174,23 @@ def get_message_subject_and_body(service, msg_id):
                 body += BeautifulSoup(decoded, 'html.parser').get_text()
     return subject, body
 
+# === Matching Logic ===
 def is_rejection(subject, body):
     text = (subject + " " + body).lower()
-    return any(phrase.lower() in text for phrase in REJECTION_PHRASES)
+    if any(phrase in text for phrase in REJECTION_PHRASES):
+        return True
+    return any(pattern.search(text) for pattern in rejection_regex_patterns)
 
+def is_interview(subject, body):
+    text = (subject + " " + body).lower()
+    if any(phrase in text for phrase in INTERVIEW_PHRASES):
+        return True
+    return any(pattern.search(text) for pattern in interview_regex_patterns)
+
+# === Labeling Actions ===
 def label_rejection_emails(service):
     label_id = get_or_create_label(service, "Unfortunately Jobs")
-    response = service.users().messages().list(userId='me', q='newer_than:30d').execute()
-    messages = response.get('messages', [])
+    messages = fetch_all_messages(service, 'newer_than:30d')
 
     for msg in messages:
         subject, body = get_message_subject_and_body(service, msg['id'])
@@ -158,6 +202,24 @@ def label_rejection_emails(service):
             ).execute()
             print(f"Labeled as 'Unfortunately Jobs': {subject[:60]}...")
 
+
+def label_interview_emails(service):
+    label_id = get_or_create_label(service, "Interview Scheduled")
+    messages = fetch_all_messages(service, 'newer_than:30d')
+
+    for msg in messages:
+        subject, body = get_message_subject_and_body(service, msg['id'])
+        if is_interview(subject, body):
+            service.users().messages().modify(
+                userId='me',
+                id=msg['id'],
+                body={'addLabelIds': [label_id]}
+            ).execute()
+            print(f"Labeled as 'Interview Scheduled': {subject[:60]}...")
+
+
+# === Entry Point ===
 if __name__ == '__main__':
     service = authenticate_gmail()
     label_rejection_emails(service)
+    label_interview_emails(service)
